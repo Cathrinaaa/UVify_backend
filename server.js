@@ -18,17 +18,21 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // -------------------------
-// 🌐 Middleware
+// 🌐 Middleware (CORS FIXED)
 // -------------------------
 app.use(
   cors({
     origin: [
-      "http://localhost:5173", // local dev frontend
-      "https://your-uvify-frontend.vercel.app", // deployed frontend
+      "http://localhost:5173",                // Local Vite frontend
+      "https://your-uvify-frontend.vercel.app", // Vercel deployed frontend
     ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
 );
+
+app.options("*", cors()); // handle preflight OPTIONS requests
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -47,7 +51,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// 2️⃣ Create a new user (for setup or registration)
+// 2️⃣ Register new user
 app.post("/register", async (req, res) => {
   const { username, password, email } = req.body;
   if (!username || !password) {
@@ -61,42 +65,46 @@ app.post("/register", async (req, res) => {
       .insert(users)
       .values({
         username,
-        password, // ⚠️ store hashed password in production!
+        password, // ⚠️ TODO: use bcrypt hash later
         email,
       })
       .returning();
     res.json({ success: true, user: result[0] });
   } catch (error) {
     console.error("❌ Error registering user:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to register user" });
+    res.status(500).json({ success: false, message: "Failed to register user" });
   }
 });
-// Login route
+
+// 3️⃣ Login route
 app.post("/auth/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const [user] = await db.select().from(users).where(eq(users.email, email));
-    if (!user || user.password !== password) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found" });
     }
+
+    // ⚠️ In production: compare hashed passwords using bcrypt
+    if (user.password !== password) {
+      return res.status(401).json({ success: false, message: "Invalid password" });
+    }
+
     res.json({ success: true, user });
   } catch (err) {
     console.error("Login error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error during login" });
   }
 });
 
-// 3️⃣ ESP32 — Save UV reading to DB (main API)
+// 4️⃣ ESP32 — Save UV reading to DB (main API)
 app.post("/history/:userId", async (req, res) => {
   const { userId } = req.params;
   const { date, time, uvi, level } = req.body;
 
   if (!date || !time || uvi === undefined || !level) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Missing required fields" });
+    return res.status(400).json({ success: false, message: "Missing required fields" });
   }
 
   try {
@@ -114,13 +122,11 @@ app.post("/history/:userId", async (req, res) => {
     res.json({ success: true, entry: result[0] });
   } catch (error) {
     console.error("❌ Error saving UV reading:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to save UV reading" });
+    res.status(500).json({ success: false, message: "Failed to save UV reading" });
   }
 });
 
-// 4️⃣ Fetch all readings for a user (from Neon DB)
+// 5️⃣ Fetch all readings for a user (from Neon DB)
 app.get("/history/:userId", async (req, res) => {
   const { userId } = req.params;
 
@@ -134,13 +140,11 @@ app.get("/history/:userId", async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error("❌ Error fetching user history:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch history" });
+    res.status(500).json({ success: false, message: "Failed to fetch history" });
   }
 });
 
-// 5️⃣ (Optional) Clear all readings — for testing only
+// 6️⃣ Delete all readings — for testing
 app.delete("/history/:userId", async (req, res) => {
   const { userId } = req.params;
 
@@ -149,14 +153,12 @@ app.delete("/history/:userId", async (req, res) => {
     res.json({ success: true, message: "All readings deleted for user" });
   } catch (error) {
     console.error("❌ Error deleting readings:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete readings" });
+    res.status(500).json({ success: false, message: "Failed to delete readings" });
   }
 });
 
 // ======================================================
-// 🌐 Dashboard + ESP32 (Temporary In-Memory Flow)
+// 🌐 Dashboard + ESP32 (In-Memory + DB Sync)
 // ======================================================
 
 // ESP32 sends readings (used by your existing sketch)
@@ -164,9 +166,7 @@ app.post("/receive-data", async (req, res) => {
   const { date, time, uvi, level } = req.body;
 
   if (!date || !time || !uvi || !level) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Missing required fields" });
+    return res.status(400).json({ success: false, message: "Missing required fields" });
   }
 
   const entry = { date, time, uvi, level };
@@ -197,7 +197,7 @@ app.get("/latest", (req, res) => {
   res.json(history[history.length - 1]);
 });
 
-// Return temporary history (from in-memory)
+// Return temporary in-memory history
 app.get("/history", (req, res) => {
   res.json(history);
 });
