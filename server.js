@@ -197,9 +197,22 @@ app.get("/latest", (req, res) => {
   res.json(history[history.length - 1]);
 });
 
-// Return temporary in-memory history
-app.get("/history", (req, res) => {
-  res.json(history);
+// Return all readings from database
+app.get("/history", async (req, res) => {
+  try {
+    const results = await db
+      .select()
+      .from(uv_readings)
+      .orderBy(desc(uv_readings.created_at)); // newest first
+
+    res.json(results);
+  } catch (error) {
+    console.error("❌ Error fetching all readings:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch readings from database",
+    });
+  }
 });
 
 // ======================================================
