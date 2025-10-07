@@ -73,6 +73,20 @@ app.post("/register", async (req, res) => {
       .json({ success: false, message: "Failed to register user" });
   }
 });
+// Login route
+app.post("/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    if (!user || user.password !== password) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+    res.json({ success: true, user });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
 
 // 3️⃣ ESP32 — Save UV reading to DB (main API)
 app.post("/history/:userId", async (req, res) => {
