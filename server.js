@@ -200,17 +200,23 @@ app.get("/latest", (req, res) => {
 // Return all readings from database
 app.get("/history", async (req, res) => {
   try {
-    const results = await db
-      .select()
-      .from(uv_readings)
-      .orderBy(desc(uv_readings.created_at)); // newest first
+    // Optional: if you later pass userId as query param ?userId=1
+    const { userId } = req.query;
 
+    let query = db.select().from(uv_readings).orderBy(desc(uv_readings.created_at));
+
+    // If userId is provided, filter by user
+    if (userId) {
+      query = query.where(eq(uv_readings.user_id, Number(userId)));
+    }
+
+    const results = await query;
     res.json(results);
   } catch (error) {
-    console.error("❌ Error fetching all readings:", error);
+    console.error("❌ Error fetching UV history:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch readings from database",
+      message: "Failed to fetch UV history from database",
     });
   }
 });
