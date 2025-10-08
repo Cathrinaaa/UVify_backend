@@ -157,6 +157,22 @@ app.delete("/history/:userId", async (req, res) => {
   }
 });
 
+// 7 profile 
+app.get("/profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT user_id, username, email, first_name, last_name, phone, created_at
+       FROM users WHERE user_id = $1`,
+      [userId]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ======================================================
 // 🌐 Dashboard + ESP32 (In-Memory + DB Sync)
 // ======================================================
