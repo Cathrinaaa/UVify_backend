@@ -11,6 +11,9 @@ export const users = pgTable("users", {
   password: varchar("password", { length: 255 }).notNull(),
   email: varchar("email", { length: 150 }),
   created_at: timestamp("created_at").defaultNow(),
+  first_name: varchar("first_name", { length: 100 }), 
+  last_name: varchar("last_name", { length: 100 }),  
+  phone: varchar("phone", { length: 50 }),
 });
 
 // UV READINGS TABLE

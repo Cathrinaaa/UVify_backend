@@ -157,21 +157,63 @@ app.delete("/history/:userId", async (req, res) => {
   }
 });
 
-// 7 profile 
+// ======================================================
+// 8️⃣ User Profile Routes
+// ======================================================
+
+// ✅ Get user profile by ID
 app.get("/profile/:userId", async (req, res) => {
   const { userId } = req.params;
   try {
-    const result = await pool.query(
-      `SELECT user_id, username, email, first_name, last_name, phone, created_at
-       FROM users WHERE user_id = $1`,
-      [userId]
-    );
-    res.json(result.rows[0]);
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.user_id, Number(userId)));
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, user });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Error fetching profile:", err);
+    res.status(500).json({ success: false, message: "Server error fetching profile" });
   }
 });
+
+// ✅ Update user profile by ID
+app.put("/profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const { first_name, last_name, email, phone } = req.body;
+
+  try {
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.user_id, Number(userId)));
+
+    if (!existingUser) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const updated = await db
+      .update(users)
+      .set({
+        first_name,
+        last_name,
+        email,
+        phone,
+      })
+      .where(eq(users.user_id, Number(userId)))
+      .returning();
+
+    res.json({ success: true, user: updated[0] });
+  } catch (err) {
+    console.error("❌ Error updating profile:", err);
+    res.status(500).json({ success: false, message: "Server error updating profile" });
+  }
+});
+
 
 // ======================================================
 // 🌐 Dashboard + ESP32 (In-Memory + DB Sync)
