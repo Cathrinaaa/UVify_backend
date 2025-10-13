@@ -53,9 +53,11 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
+
 // 2️⃣ Register new user
 app.post("/register", async (req, res) => {
-  const { username, password, email } = req.body;
+  const { username, password, email, first_name, last_name, phone } = req.body;
+
   if (!username || !password) {
     return res
       .status(400)
@@ -69,12 +71,18 @@ app.post("/register", async (req, res) => {
         username,
         password, // ⚠️ TODO: use bcrypt hash later
         email,
+        first_name,
+        last_name,
+        phone,
       })
       .returning();
+
     res.json({ success: true, user: result[0] });
   } catch (error) {
     console.error("❌ Error registering user:", error);
-    res.status(500).json({ success: false, message: "Failed to register user" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to register user" });
   }
 });
 
