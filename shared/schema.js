@@ -2,7 +2,7 @@
 // 🌤️ UVify Database Schema (Drizzle ORM)
 // ======================================================
 
-import { pgTable, serial, varchar, numeric, integer, timestamp, date, time } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, numeric, integer, timestamp, date, time, text } from "drizzle-orm/pg-core";
 
 // USERS TABLE
 export const users = pgTable("users", {
