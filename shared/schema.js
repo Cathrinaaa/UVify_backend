@@ -14,7 +14,7 @@ export const users = pgTable("users", {
   first_name: varchar("first_name", { length: 100 }), 
   last_name: varchar("last_name", { length: 100 }),  
   phone: varchar("phone", { length: 50 }),
-   profile_image: text("profile_image"),
+  profile_image: text("profile_image"),
 });
 
 // UV READINGS TABLE
