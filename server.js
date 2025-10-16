@@ -27,7 +27,7 @@ app.use(
       "https://v0-uv-ifyfrontend.vercel.app", //cath
       "https://uv-ifyfrontend.vercel.app", //cath
       "https://v0-v0uvifyfrontendmain.vercel.app", //ilad
-      "https://uvifyfrontend.vercel.app/", //cath
+      "https://uvify-frontend.vercel.app/", //cath
       "https://b5479d6e-0dba-409a-b84d-f50f8210e9c6-00-qg71uy0n0wv4.pike.replit.dev" // Vercel deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
