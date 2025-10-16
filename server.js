@@ -6,6 +6,10 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { db } from "./db.js";
 import { users, uv_readings } from "./shared/schema.js";
 import { eq, desc } from "drizzle-orm";
@@ -17,6 +21,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // -------------------------
 // 🌐 Middleware (CORS FIXED)
 // -------------------------
@@ -24,9 +31,9 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",                // Local Vite frontend
-      "https://v0-uv-ifyfrontend.vercel.app", //cath
-      "https://uv-ifyfrontend.vercel.app", //cath
-      "https://uvify-frontend.vercel.app/", //cath
+      "https://v0-uv-ifyfrontend.vercel.app", // cath
+      "https://uv-ifyfrontend.vercel.app",    // cath
+      "https://uvify-frontend.vercel.app/",   // cath
       "https://b5479d6e-0dba-409a-b84d-f50f8210e9c6-00-qg71uy0n0wv4.pike.replit.dev" // Vercel deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -36,9 +43,40 @@ app.use(
 );
 
 app.options("*", cors()); // handle preflight OPTIONS requests
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ======================================================
+// 📁 Profile Image Upload Setup (Multer)
+// ======================================================
+const uploadDir = path.join(__dirname, "uploads", "profile_images");
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const fileName = `user_${req.params.userId}_${Date.now()}${ext}`;
+    cb(null, fileName);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|webp/;
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.test(ext)) cb(null, true);
+    else cb(new Error("Only .jpg, .jpeg, .png, or .webp images allowed"));
+  },
+});
+
+// Serve images publicly
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ======================================================
 // 🧠 Temporary In-Memory Data for Live Dashboard
@@ -53,7 +91,6 @@ let history = [];
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
-
 
 // 2️⃣ Register new user
 app.post("/register", async (req, res) => {
@@ -192,10 +229,11 @@ app.get("/profile/:userId", async (req, res) => {
   }
 });
 
-// ✅ Update user profile by ID
-app.put("/profile/:userId", async (req, res) => {
+// ✅ Update user profile by ID (with image upload)
+app.put("/profile/:userId", upload.single("profile_image"), async (req, res) => {
   const { userId } = req.params;
   const { first_name, last_name, email, phone } = req.body;
+  let newImagePath = null;
 
   try {
     const [existingUser] = await db
@@ -207,6 +245,16 @@ app.put("/profile/:userId", async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
+    // Handle new uploaded image
+    if (req.file) {
+      newImagePath = `/uploads/profile_images/${req.file.filename}`;
+
+      // Delete old image if it exists
+      if (existingUser.profile_image && fs.existsSync(`.${existingUser.profile_image}`)) {
+        fs.unlinkSync(`.${existingUser.profile_image}`);
+      }
+    }
+
     const updated = await db
       .update(users)
       .set({
@@ -214,6 +262,7 @@ app.put("/profile/:userId", async (req, res) => {
         last_name,
         email,
         phone,
+        profile_image: newImagePath || existingUser.profile_image,
       })
       .where(eq(users.user_id, Number(userId)))
       .returning();
@@ -224,7 +273,6 @@ app.put("/profile/:userId", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error updating profile" });
   }
 });
-
 
 // ======================================================
 // 🌐 Dashboard + ESP32 (In-Memory + DB Sync)
@@ -269,12 +317,9 @@ app.get("/latest", (req, res) => {
 // Return all readings from database
 app.get("/history", async (req, res) => {
   try {
-    // Optional: if you later pass userId as query param ?userId=1
     const { userId } = req.query;
-
     let query = db.select().from(uv_readings).orderBy(desc(uv_readings.created_at));
 
-    // If userId is provided, filter by user
     if (userId) {
       query = query.where(eq(uv_readings.user_id, Number(userId)));
     }
