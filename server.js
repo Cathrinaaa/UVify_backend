@@ -223,6 +223,38 @@ app.put("/profile/:userId", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error updating profile" });
   }
 });
+router.post("/gemini", async (req, res) => {
+  const { uvData } = req.body;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Analyze this UV data and provide skin health recommendations:\n${JSON.stringify(
+                    uvData
+                  )}`,
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    res.status(500).json({ error: "Failed to connect to Gemini API" });
+  }
+});
 
 
 // ======================================================
