@@ -25,8 +25,7 @@ app.use(
     origin: [
       "http://localhost:5173",                // Local Vite frontend
       "https://v0-uv-ifyfrontend.vercel.app",
-      "https://uv-ifyfrontend.vercel.app",
-      "https://v0-v0uvifyfrontendmain.vercel.app",
+      "https://v0-v0uvifyfrontendmain5.vercel.app",
       "https://b5479d6e-0dba-409a-b84d-f50f8210e9c6-00-qg71uy0n0wv4.pike.replit.dev" // Vercel deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
