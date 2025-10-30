@@ -223,7 +223,10 @@ app.put("/profile/:userId", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error updating profile" });
   }
 });
-router.post("/gemini", async (req, res) => {
+
+
+// --- Gemini API route ---
+app.post("/api/gemini", async (req, res) => {
   const { uvData } = req.body;
 
   try {
@@ -237,7 +240,7 @@ router.post("/gemini", async (req, res) => {
             {
               parts: [
                 {
-                  text: `Analyze this UV data and provide skin health recommendations:\n${JSON.stringify(
+                  text: `Analyze this UV data and give health suggestions:\n${JSON.stringify(
                     uvData
                   )}`,
                 },
@@ -255,6 +258,7 @@ router.post("/gemini", async (req, res) => {
     res.status(500).json({ error: "Failed to connect to Gemini API" });
   }
 });
+
 
 
 // ======================================================
