@@ -6,7 +6,6 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import fetch from "node-fetch"; // ✅ Added for Gemini API requests
 import { db } from "./db.js";
 import { users, uv_readings } from "./shared/schema.js";
 import { eq, desc } from "drizzle-orm";
@@ -284,7 +283,7 @@ app.get("/history", async (req, res) => {
 });
 
 // ======================================================
-// 🧠 Gemini AI Suggestions Route
+// 🤖 Gemini AI Suggestions Route
 // ======================================================
 app.post("/api/gemini", async (req, res) => {
   const { uvData } = req.body;
