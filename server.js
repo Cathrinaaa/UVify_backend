@@ -283,18 +283,21 @@ app.get("/history", async (req, res) => {
 });
 
 // ======================================================
-// 🤖 Gemini AI Suggestions Route
+// 🤖 Gemini AI Suggestions Route (Updated & Safe)
 // ======================================================
 app.post("/api/gemini", async (req, res) => {
   const { uvData } = req.body;
 
   if (!process.env.GEMINI_API_KEY) {
+    console.error("❌ Missing GEMINI_API_KEY in environment variables.");
     return res.status(500).json({ error: "Gemini API key not configured" });
   }
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    console.log("🌤️ Incoming UV Data:", JSON.stringify(uvData, null, 2));
+
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -303,9 +306,9 @@ app.post("/api/gemini", async (req, res) => {
             {
               parts: [
                 {
-                  text: `Analyze this UV data and provide personalized skin health recommendations:\n${JSON.stringify(
+                  text: `You are a UV safety and skin health assistant. Based on this UV data: ${JSON.stringify(
                     uvData
-                  )}`,
+                  )}, provide short, clear, and personalized advice for sun protection (limit to 2–3 sentences).`,
                 },
               ],
             },
@@ -314,13 +317,39 @@ app.post("/api/gemini", async (req, res) => {
       }
     );
 
-    const data = await response.json();
-    res.json(data);
+    const data = await geminiResponse.json();
+    console.log("🧠 Gemini Raw Response:", JSON.stringify(data, null, 2));
+
+    // Extract text safely (Gemini’s output may vary)
+    const suggestion =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      data?.output_text ||
+      null;
+
+    if (!suggestion) {
+      console.warn("⚠️ Gemini returned no suggestion text.", data);
+      return res.status(500).json({
+        error: "Received empty suggestion from Gemini API",
+        data,
+      });
+    }
+
+    // ✅ Return data in same structure the frontend expects
+    res.json({
+      candidates: [
+        {
+          content: {
+            parts: [{ text: suggestion }],
+          },
+        },
+      ],
+    });
   } catch (error) {
     console.error("❌ Gemini API Error:", error);
     res.status(500).json({ error: "Failed to connect to Gemini API" });
   }
 });
+
 
 // ======================================================
 // 🚀 Start Server
