@@ -6,6 +6,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import fetch from "node-fetch"; // ✅ Added for Gemini API requests
 import { db } from "./db.js";
 import { users, uv_readings } from "./shared/schema.js";
 import { eq, desc } from "drizzle-orm";
@@ -52,7 +53,6 @@ let history = [];
 app.get("/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
-
 
 // 2️⃣ Register new user
 app.post("/register", async (req, res) => {
@@ -224,43 +224,6 @@ app.put("/profile/:userId", async (req, res) => {
   }
 });
 
-
-// --- Gemini API route ---
-app.post("/api/gemini", async (req, res) => {
-  const { uvData } = req.body;
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Analyze this UV data and give health suggestions:\n${JSON.stringify(
-                    uvData
-                  )}`,
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    );
-
-    const data = await response.json();
-    res.json(data);
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    res.status(500).json({ error: "Failed to connect to Gemini API" });
-  }
-});
-
-
-
 // ======================================================
 // 🌐 Dashboard + ESP32 (In-Memory + DB Sync)
 // ======================================================
@@ -304,16 +267,11 @@ app.get("/latest", (req, res) => {
 // Return all readings from database
 app.get("/history", async (req, res) => {
   try {
-    // Optional: if you later pass userId as query param ?userId=1
     const { userId } = req.query;
-
     let query = db.select().from(uv_readings).orderBy(desc(uv_readings.created_at));
-
-    // If userId is provided, filter by user
     if (userId) {
       query = query.where(eq(uv_readings.user_id, Number(userId)));
     }
-
     const results = await query;
     res.json(results);
   } catch (error) {
@@ -322,6 +280,46 @@ app.get("/history", async (req, res) => {
       success: false,
       message: "Failed to fetch UV history from database",
     });
+  }
+});
+
+// ======================================================
+// 🧠 Gemini AI Suggestions Route
+// ======================================================
+app.post("/api/gemini", async (req, res) => {
+  const { uvData } = req.body;
+
+  if (!process.env.GEMINI_API_KEY) {
+    return res.status(500).json({ error: "Gemini API key not configured" });
+  }
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Analyze this UV data and provide personalized skin health recommendations:\n${JSON.stringify(
+                    uvData
+                  )}`,
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
+
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Gemini API Error:", error);
+    res.status(500).json({ error: "Failed to connect to Gemini API" });
   }
 });
 
