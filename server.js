@@ -232,27 +232,38 @@ app.put("/profile/:userId", async (req, res) => {
 app.post("/receive-data", async (req, res) => {
   const { date, time, uvi, level } = req.body;
 
-  if (!date || !time || !uvi || !level) {
-    return res.status(400).json({ success: false, message: "Missing required fields" });
+  if (!date || !time || uvi === undefined || !level) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Missing required fields" });
   }
 
-  const entry = { date, time, uvi, level };
-  history.push(entry);
-  console.log("📡 Data received:", entry);
-
   try {
-    // Save to Neon DB (assuming single user: ID = 1)
-    await db.insert(uv_readings).values({
+    // Convert date string "YYYY-MM-DD" to JS Date object
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid date format" });
+    }
+
+    const entry = { date: dateObj, time, uvi: Number(uvi), level };
+    history.push(entry);
+    console.log("📡 Data received:", entry);
+
+    // Save to Neon DB (user_id = 1 for now)
+    const result = await db.insert(uv_readings).values({
       user_id: 1,
-      date,
-      time,
-      uvi: Number(uvi),
-      level,
-    });
-    res.json({ success: true, message: "Data saved to DB", entry });
+      date: entry.date, // proper Date object
+      time: entry.time,
+      uvi: entry.uvi,
+      level: entry.level,
+    }).returning();
+
+    res.json({ success: true, message: "Data saved to DB", entry: result[0] });
   } catch (error) {
     console.error("❌ DB save failed:", error);
-    res.json({ success: true, message: "Saved locally only", entry });
+    res.json({ success: true, message: "Saved locally only", entry: { date, time, uvi, level } });
   }
 });
 
