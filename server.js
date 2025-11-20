@@ -26,7 +26,7 @@ app.use(
       "http://localhost:5173",                // Local Vite frontend
       "http://localhost:5000",
       "https://v0-uv-ifyfrontend.vercel.app",
-      "https://v0-uv-ify-ul.vercel.app",
+      "https://v0-uvifymain.vercel.app",
       "https://b5479d6e-0dba-409a-b84d-f50f8210e9c6-00-qg71uy0n0wv4.pike.replit.dev" // Vercel deployed frontend
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
